@@ -5,8 +5,8 @@ const AppFooter = () => {
   return (
     <CFooter className="px-4">
       <div>
-        <a href="https://recruitment-pas.web.app/" target="_blank" rel="noopener noreferrer">
-          PT Prakarsa Alam Segar
+        <a href="" target="_blank" rel="noopener noreferrer">
+          PT Sinarmas Agro Resources Tbk
         </a>
         <span className="ms-1">&copy; 2025</span>
       </div>

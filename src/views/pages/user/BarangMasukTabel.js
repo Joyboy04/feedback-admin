@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { db, getDocs, collection, doc, getDoc, deleteDoc, updateDoc } from '../../../firebase';
+import { db, getDocs, collection, doc, getDoc } from '../../../firebase';
 import { CButton, CCard, CCardBody, CCardHeader, CSpinner, CRow, CCol } from '@coreui/react';
 import Swal from 'sweetalert2';
 import DataTable from 'react-data-table-component';
 import { getAuth } from 'firebase/auth';
 import CIcon from '@coreui/icons-react';
-import { cilCheckAlt, cilTrash, cilReload, cilArrowTop } from '@coreui/icons';
+import { cilReload, cilArrowTop } from '@coreui/icons';
 
 const BarangMasukTabel = () => {
   const [barangMasukData, setBarangMasukData] = useState([]);
@@ -21,34 +21,35 @@ const BarangMasukTabel = () => {
       try {
         setLoading(true);
         setError(null);
-        
+
         const userDocRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
 
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          
+
           if (userData.role === 'user') {
             console.log('Fetching from barang-masuk collection...');
             const querySnapshot = await getDocs(collection(db, 'barang-masuk'));
             console.log('Data received:', querySnapshot.docs);
-            
+
             const data = querySnapshot.docs.map((docSnapshot) => {
               const docData = docSnapshot.data();
-              
+
               return {
                 id: docSnapshot.id,
-                name: docData.name || '',
-                quantity: docData.quantity || 0,
-                description: docData.description || '',
+                periode: docData.periode || '',
+                controlSystem: docData.controlSystem || '',
+                equipment: docData.equipment || '',
+                problem: docData.problem || '',
+                solusi: docData.solusi || '',
+                status: docData.status || 'Open',
+                progress: docData.progress || 0,
                 image: docData.image || '',
-                status: docData.status || 'pending',
                 createdAt: docData.createdAt || '',
-                approvedBy: docData.approvedBy || '',
-                approvedAt: docData.approvedAt || '',
               };
             });
-            
+
             console.log('Cleaned data:', data);
             setBarangMasukData(data);
           } else {
@@ -73,7 +74,6 @@ const BarangMasukTabel = () => {
     fetchData();
   }, [user]);
 
-
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
@@ -87,66 +87,125 @@ const BarangMasukTabel = () => {
     fetchData();
   };
 
-  // Get status badge
   const getStatusBadge = (status) => {
-    switch(status) {
-      case 'approved':
-        return <span className="badge bg-success">Approved</span>;
-      case 'rejected':
-        return <span className="badge bg-danger">Rejected</span>;
-      case 'pending':
+    switch (status) {
+      case 'Open':
+        return <span className="badge bg-warning text-dark">Open</span>;
+      case 'Close':
+        return <span className="badge bg-success">Close</span>;
       default:
-        return <span className="badge bg-warning text-dark">Pending</span>;
+        return <span className="badge bg-secondary">{status || '-'}</span>;
     }
   };
 
   const columns = [
     {
-      name: 'Name',
-      selector: (row) => row.name,
+      name: 'Periode',
+      selector: (row) => row.periode,
       sortable: true,
-      width: '20%',
+      minWidth: '120px',
+      grow: 0,
+      wrap: true,
+      cell: (row) => <div className="py-2">{row.periode || '-'}</div>,
     },
     {
-      name: 'Quantity',
-      selector: (row) => row.quantity,
+      name: 'Control System',
+      selector: (row) => row.controlSystem,
       sortable: true,
-      width: '20%',
+      minWidth: '160px',
+      grow: 1,
+      wrap: true,
+      cell: (row) => <div className="py-2">{row.controlSystem || '-'}</div>,
+    },
+    {
+      name: 'Equipment',
+      selector: (row) => row.equipment,
+      sortable: true,
+      minWidth: '150px',
+      grow: 1,
+      wrap: true,
+      cell: (row) => <div className="py-2">{row.equipment || '-'}</div>,
+    },
+    {
+      name: 'Problem',
+      selector: (row) => row.problem,
+      sortable: true,
+      minWidth: '220px',
+      grow: 2,
+      wrap: true,
       cell: (row) => (
-        <span className="badge bg-info">{row.quantity}</span>
+        <div
+          className="py-2"
+          style={{
+            whiteSpace: 'normal',
+            lineHeight: '1.45',
+          }}
+        >
+          {row.problem || '-'}
+        </div>
       ),
     },
     {
-      name: 'Description',
-      selector: (row) => row.description,
+      name: 'Solusi',
+      selector: (row) => row.solusi,
       sortable: true,
-      width: '20%',
+      minWidth: '220px',
+      grow: 2,
+      wrap: true,
+      cell: (row) => (
+        <div
+          className="py-2"
+          style={{
+            whiteSpace: 'normal',
+            lineHeight: '1.45',
+          }}
+        >
+          {row.solusi || '-'}
+        </div>
+      ),
     },
     {
       name: 'Status',
       selector: (row) => row.status,
       sortable: true,
-      width: '20%',
+      minWidth: '100px',
+      grow: 0,
+      center: true,
       cell: (row) => getStatusBadge(row.status),
     },
     {
-      name: 'Image',
+      name: 'Progress',
+      selector: (row) => row.progress,
+      sortable: true,
+      minWidth: '100px',
+      grow: 0,
+      center: true,
+      cell: (row) => <span className="badge bg-info">{row.progress}%</span>,
+    },
+    {
+      name: 'Foto',
+      minWidth: '100px',
+      grow: 0,
+      center: true,
       cell: (row) => (
-        <div>
+        <div className="py-2 text-center">
           {row.image ? (
-            <img 
-              src={row.image} 
-              alt={row.name} 
-              height="50" 
-              className="rounded"
-              style={{ cursor: 'pointer' }}
+            <img
+              src={row.image}
+              alt={row.equipment || 'Foto'}
+              className="rounded border"
+              style={{
+                width: '56px',
+                height: '56px',
+                objectFit: 'cover',
+                cursor: 'pointer',
+              }}
               onClick={() => {
                 Swal.fire({
-                  title: row.name,
+                  title: row.equipment || 'Foto',
                   imageUrl: row.image,
                   imageWidth: 400,
-                  imageHeight: 300,
-                  imageAlt: row.name,
+                  imageAlt: row.equipment || 'Foto',
                   confirmButtonText: 'Close',
                 });
               }}
@@ -156,7 +215,6 @@ const BarangMasukTabel = () => {
           )}
         </div>
       ),
-      width: '20%',
     },
   ];
 
@@ -171,7 +229,7 @@ const BarangMasukTabel = () => {
           <CCol xs="auto">
             <h5 className="mb-0">
               <CIcon icon={cilArrowTop} className="me-2" />
-              Barang Masuk ({barangMasukData.length})
+              Feedback Detail ({barangMasukData.length})
             </h5>
           </CCol>
           <CCol className="text-end">
@@ -188,6 +246,7 @@ const BarangMasukTabel = () => {
           </CCol>
         </CRow>
       </CCardHeader>
+
       <CCardBody>
         {error && (
           <div className="alert alert-danger alert-dismissible fade show" role="alert">
@@ -203,33 +262,57 @@ const BarangMasukTabel = () => {
             </div>
           </div>
         ) : barangMasukData.length > 0 ? (
-          <DataTable
-            columns={columns}
-            data={currentData}
-            pagination
-            paginationServer
-            paginationPerPage={rowsPerPage}
-            paginationTotalRows={barangMasukData.length}
-            onChangePage={handlePageChange}
-            onChangeRowsPerPage={handleRowsPerPageChange}
-            responsive
-            highlightOnHover
-            striped
-            dense
-            customStyles={{
-              headCells: {
-                style: {
-                  backgroundColor: '#f8f9fa',
-                  fontWeight: 'bold',
-                  color: '#333',
+          <div style={{ overflowX: 'auto' }}>
+            <DataTable
+              columns={columns}
+              data={currentData}
+              pagination
+              paginationServer
+              paginationPerPage={rowsPerPage}
+              paginationTotalRows={barangMasukData.length}
+              onChangePage={handlePageChange}
+              onChangeRowsPerPage={handleRowsPerPageChange}
+              responsive
+              highlightOnHover
+              striped
+              persistTableHead
+              customStyles={{
+                table: {
+                  style: {
+                    minWidth: '1300px',
+                  },
                 },
-              },
-            }}
-          />
+                headCells: {
+                  style: {
+                    backgroundColor: '#f8f9fa',
+                    fontWeight: 'bold',
+                    color: '#333',
+                    fontSize: '14px',
+                    paddingTop: '14px',
+                    paddingBottom: '14px',
+                    whiteSpace: 'normal',
+                  },
+                },
+                rows: {
+                  style: {
+                    minHeight: '88px',
+                    alignItems: 'stretch',
+                  },
+                },
+                cells: {
+                  style: {
+                    paddingTop: '10px',
+                    paddingBottom: '10px',
+                    verticalAlign: 'top',
+                  },
+                },
+              }}
+            />
+          </div>
         ) : (
           <div className="text-center py-5">
             <h6 className="text-muted">No records to display</h6>
-            <p className="text-muted small">Start by adding a new item.</p>
+            <p className="text-muted small">Start by adding feedback detail.</p>
           </div>
         )}
       </CCardBody>

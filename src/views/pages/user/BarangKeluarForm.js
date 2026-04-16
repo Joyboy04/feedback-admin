@@ -124,7 +124,7 @@ const BarangKeluarForm = () => {
         created_by: barangData.createdBy,
         created_at: new Date(barangData.createdAt).toLocaleString('id-ID'),
         item_id: barangData.id,
-        dashboard_link: `${window.location.origin}/admin/barang-keluar`,
+        dashboard_link: `${window.location.origin}/admin/feedback-summary`,
       };
 
       const response = await emailjs.send(

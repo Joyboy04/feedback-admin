@@ -1,54 +1,130 @@
 import React, { useEffect, useState } from 'react';
-import { db, getDocs, collection, doc, getDoc, deleteDoc, updateDoc } from '../../../firebase';
+import { db, getDocs, collection, doc, getDoc } from '../../../firebase';
 import { CButton, CCard, CCardBody, CCardHeader, CSpinner, CRow, CCol } from '@coreui/react';
-import Swal from 'sweetalert2';
-import DataTable from 'react-data-table-component';
 import { getAuth } from 'firebase/auth';
 import CIcon from '@coreui/icons-react';
-import { cilArrowBottom, cilTrash, cilReload, cilCheckAlt } from '@coreui/icons';
+import { cilReload, cilList } from '@coreui/icons';
 
 const BarangKeluarTabel = () => {
-  const [barangKeluarData, setBarangKeluarData] = useState([]);
+  const [summaryData, setSummaryData] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+
   const auth = getAuth();
   const user = auth.currentUser;
+
+  const calculateSummary = (rawData) => {
+    const periodeMap = {};
+
+    rawData.forEach((item) => {
+      const periode = item.periode || '-';
+      const controlSystem = item.controlSystem || '-';
+      const status = item.status || 'Open';
+
+      if (!periodeMap[periode]) {
+        periodeMap[periode] = {};
+      }
+
+      if (!periodeMap[periode][controlSystem]) {
+        periodeMap[periode][controlSystem] = {
+          totalFeedback: 0,
+          issueOpen: 0,
+          issueClose: 0,
+        };
+      }
+
+      periodeMap[periode][controlSystem].totalFeedback += 1;
+
+      if (status === 'Open') {
+        periodeMap[periode][controlSystem].issueOpen += 1;
+      } else if (status === 'Close') {
+        periodeMap[periode][controlSystem].issueClose += 1;
+      }
+    });
+
+    const result = Object.keys(periodeMap).map((periode) => {
+      const systems = periodeMap[periode];
+
+      const controlSystemRows = Object.keys(systems).map((systemName) => {
+        const item = systems[systemName];
+
+        const progress =
+          item.totalFeedback > 0
+            ? Math.round((item.issueClose / item.totalFeedback) * 100)
+            : 0;
+
+        return {
+          controlSystem: systemName,
+          totalFeedback: item.totalFeedback,
+          issueOpen: item.issueOpen,
+          issueClose: item.issueClose,
+          progress,
+        };
+      });
+
+      const totalFeedback = controlSystemRows.reduce((sum, item) => sum + item.totalFeedback, 0);
+      const issueOpen = controlSystemRows.reduce((sum, item) => sum + item.issueOpen, 0);
+      const issueClose = controlSystemRows.reduce((sum, item) => sum + item.issueClose, 0);
+
+      const totalProgress =
+        totalFeedback > 0
+          ? Math.round((issueClose / totalFeedback) * 100)
+          : 0;
+
+      return {
+        periode,
+        totalRow: {
+          controlSystem: 'Total feedback',
+          totalFeedback,
+          issueOpen,
+          issueClose,
+          progress: totalProgress,
+        },
+        detailRows: controlSystemRows,
+      };
+    });
+
+    return result.sort((a, b) => {
+      const numA = parseInt(a.periode, 10);
+      const numB = parseInt(b.periode, 10);
+
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return numA - numB;
+      }
+
+      return String(a.periode).localeCompare(String(b.periode));
+    });
+  };
 
   const fetchData = async () => {
     if (user) {
       try {
         setLoading(true);
         setError(null);
-        
+
         const userDocRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
 
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          
+
           if (userData.role === 'user') {
-            console.log('Fetching from barang-keluar collection...');
-            const querySnapshot = await getDocs(collection(db, 'barang-keluar'));
-            console.log('Data received:', querySnapshot.docs);
-            
-            const data = querySnapshot.docs.map((docSnapshot) => {
+            console.log('Fetching from barang-masuk collection...');
+            const querySnapshot = await getDocs(collection(db, 'barang-masuk'));
+
+            const rawData = querySnapshot.docs.map((docSnapshot) => {
               const docData = docSnapshot.data();
-              
+
               return {
                 id: docSnapshot.id,
-                itemName: docData.itemName || '',
-                quantity: docData.quantity || 0,
-                notes: docData.notes || '',
-                status: docData.status || 'pending',
-                createdBy: docData.createdBy || '',
-                createdAt: docData.createdAt || '',
+                periode: docData.periode || '',
+                controlSystem: docData.controlSystem || '',
+                status: docData.status || 'Open',
               };
             });
-            
-            console.log('Cleaned data:', data);
-            setBarangKeluarData(data);
+
+            const summary = calculateSummary(rawData);
+            setSummaryData(summary);
           } else {
             setError('You do not have permission to view this data.');
           }
@@ -71,89 +147,18 @@ const BarangKeluarTabel = () => {
     fetchData();
   }, [user]);
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-  };
-
-  const handleRowsPerPageChange = (rows) => {
-    setRowsPerPage(rows);
-    setCurrentPage(1);
-  };
-
   const handleRefresh = () => {
     fetchData();
   };
 
-  // Get status badge color
-  const getStatusBadge = (status) => {
-    switch(status) {
-      case 'approved':
-        return <span className="badge bg-success">{status}</span>;
-      case 'rejected':
-        return <span className="badge bg-danger">{status}</span>;
-      case 'pending':
-      default:
-        return <span className="badge bg-warning text-dark">{status}</span>;
-    }
-  };
-
-  const columns = [
-    {
-      name: 'Item Name',
-      selector: (row) => row.itemName,
-      sortable: true,
-      width: '20%',
-    },
-    {
-      name: 'Quantity',
-      selector: (row) => row.quantity,
-      sortable: true,
-      width: '20%',
-      cell: (row) => (
-        <span className="badge bg-danger">{row.quantity}</span>
-      ),
-    },
-    {
-      name: 'Notes',
-      selector: (row) => row.notes,
-      sortable: true,
-      width: '22%',
-      cell: (row) => (
-        <span className="small">{row.notes}</span>
-      ),
-    },
-    {
-      name: 'Status',
-      selector: (row) => row.status,
-      sortable: true,
-      width: '20%',
-      cell: (row) => getStatusBadge(row.status),
-    },
-    {
-      name: 'Date',
-      selector: (row) => new Date(row.createdAt).toLocaleDateString('id-ID'),
-      sortable: true,
-      width: '15%',
-      cell: (row) => (
-        <span className="small text-muted">
-          {row.createdAt ? new Date(row.createdAt).toLocaleDateString('id-ID') : '-'}
-        </span>
-      ),
-    },
-  ];
-
-  const indexOfLastItem = currentPage * rowsPerPage;
-  const indexOfFirstItem = indexOfLastItem - rowsPerPage;
-  const currentData = barangKeluarData.slice(indexOfFirstItem, indexOfLastItem);
-
   return (
     <CCard className="shadow-sm">
-      <CCardHeader className="bg-danger text-white">
+      <CCardHeader className="bg-success text-white">
         <CRow className="align-items-center">
           <CCol xs="auto">
             <h5 className="mb-0">
-              <CIcon icon={cilArrowBottom} className="me-2" />
-              Barang Keluar ({barangKeluarData.length})
+              <CIcon icon={cilList} className="me-2" />
+              Feedback Summary ({summaryData.length} Periode)
             </h5>
           </CCol>
           <CCol className="text-end">
@@ -170,6 +175,7 @@ const BarangKeluarTabel = () => {
           </CCol>
         </CRow>
       </CCardHeader>
+
       <CCardBody>
         {error && (
           <div className="alert alert-danger alert-dismissible fade show" role="alert">
@@ -178,40 +184,100 @@ const BarangKeluarTabel = () => {
         )}
 
         {loading ? (
-          <div className="d-flex justify-content-center align-items-center" style={{ height: '400px' }}>
+          <div
+            className="d-flex justify-content-center align-items-center"
+            style={{ height: '300px' }}
+          >
             <div className="text-center">
-              <CSpinner color="danger" />
-              <p className="mt-3 text-muted">Loading data...</p>
+              <CSpinner color="success" />
+              <p className="mt-3 text-muted">Loading summary...</p>
             </div>
           </div>
-        ) : barangKeluarData.length > 0 ? (
-          <DataTable
-            columns={columns}
-            data={currentData}
-            pagination
-            paginationServer
-            paginationPerPage={rowsPerPage}
-            paginationTotalRows={barangKeluarData.length}
-            onChangePage={handlePageChange}
-            onChangeRowsPerPage={handleRowsPerPageChange}
-            responsive
-            highlightOnHover
-            striped
-            dense
-            customStyles={{
-              headCells: {
-                style: {
-                  backgroundColor: '#f8f9fa',
-                  fontWeight: 'bold',
-                  color: '#333',
-                },
-              },
-            }}
-          />
+        ) : summaryData.length > 0 ? (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="table table-bordered align-middle mb-0">
+              <thead>
+                <tr>
+                  <th
+                    className="text-center align-middle"
+                    style={{ backgroundColor: '#e9ecef', minWidth: '120px' }}
+                  >
+                    Periode
+                  </th>
+                  <th
+                    className="text-center align-middle"
+                    style={{ backgroundColor: '#e9ecef', minWidth: '180px' }}
+                  >
+                    Control System
+                  </th>
+                  <th
+                    className="text-center align-middle"
+                    style={{ backgroundColor: '#e9ecef', minWidth: '140px' }}
+                  >
+                    Jumlah Feedback
+                  </th>
+                  <th
+                    className="text-center align-middle"
+                    style={{ backgroundColor: '#e9ecef', minWidth: '120px' }}
+                  >
+                    Issue Open
+                  </th>
+                  <th
+                    className="text-center align-middle"
+                    style={{ backgroundColor: '#e9ecef', minWidth: '120px' }}
+                  >
+                    Issue Close
+                  </th>
+                  <th
+                    className="text-center align-middle"
+                    style={{ backgroundColor: '#e9ecef', minWidth: '160px' }}
+                  >
+                    Progress (0-100%)
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {summaryData.map((periodeItem, index) => {
+                  const rows = [periodeItem.totalRow, ...periodeItem.detailRows];
+                  const rowSpanCount = rows.length;
+
+                  return rows.map((row, rowIndex) => (
+                    <tr key={`${index}-${rowIndex}`}>
+                      {rowIndex === 0 && (
+                        <td
+                          rowSpan={rowSpanCount}
+                          className="text-center align-middle fw-semibold"
+                        >
+                          {periodeItem.periode}
+                        </td>
+                      )}
+
+                      <td className={rowIndex === 0 ? 'fw-bold' : ''}>
+                        {row.controlSystem}
+                      </td>
+                      <td className={`text-center ${rowIndex === 0 ? 'fw-bold' : ''}`}>
+                        {row.totalFeedback}
+                      </td>
+                      <td className={`text-center ${rowIndex === 0 ? 'fw-bold' : ''}`}>
+                        {row.issueOpen}
+                      </td>
+                      <td className={`text-center ${rowIndex === 0 ? 'fw-bold' : ''}`}>
+                        {row.issueClose}
+                      </td>
+                      <td className={`text-center ${rowIndex === 0 ? 'fw-bold' : ''}`}>
+                        {row.progress}%
+                      </td>
+                    </tr>
+                  ));
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <div className="text-center py-5">
-            <h6 className="text-muted">No records to display</h6>
-            <p className="text-muted small">No barang keluar requests yet.</p>
+            <h6 className="text-muted">No summary data to display</h6>
+            <p className="text-muted small">Start by adding feedback detail first.</p>
           </div>
         )}
       </CCardBody>

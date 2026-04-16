@@ -77,6 +77,7 @@ const Login = () => {
           });
         })
         .catch((error) => {
+          console.error('Login error:', error.code, error.message);
           let errorMessage = 'An error occurred. Please try again.';
           if (error.code === 'auth/invalid-email') {
             errorMessage = 'The email address is invalid. Please check your email.';
@@ -84,6 +85,12 @@ const Login = () => {
             errorMessage = 'No user found with this email address.';
           } else if (error.code === 'auth/wrong-password') {
             errorMessage = 'The password is incorrect. Please try again.';
+          } else if (error.code === 'auth/invalid-credential') {
+            errorMessage = 'Email atau password salah, atau akun belum tersedia di Firebase Authentication.';
+          } else if (error.code === 'auth/too-many-requests') {
+            errorMessage = 'Terlalu banyak percobaan login. Coba lagi beberapa saat.';
+          } else if (error.code === 'auth/network-request-failed') {
+            errorMessage = 'Koneksi ke Firebase gagal. Cek internet atau konfigurasi project.';
           }
 
           Swal.fire({

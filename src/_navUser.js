@@ -24,14 +24,14 @@ const _navUser = [
   },
   {
     component: CNavItem,
-    name: 'Barang Masuk',
-    to: '/user/barang-masuk',
+    name: 'Feedback Detail',
+    to: '/user/feedback-detail',
     icon: <CIcon icon={cilArrowThickFromBottom} customClassName="nav-icon" />,
   },
   {
     component: CNavItem,
-    name: 'Barang Keluar',
-    to: '/user/barang-keluar',
+    name: 'Feedback Summary',
+    to: '/user/feedback-summary',
     icon: <CIcon icon={cilArrowThickToBottom} customClassName="nav-icon" />,
   },
 ]

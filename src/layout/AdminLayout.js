@@ -18,8 +18,8 @@ const AdminLayout = () => {
           <Routes>
             <Route index element={<AdminDashboard />} />
             <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="barang-masuk" element={<BarangMasuk />} />
-            <Route path="barang-keluar" element={<BarangKeluar />} />
+            <Route path="feedback-detail" element={<BarangMasuk />} />
+            <Route path="feedback-summary" element={<BarangKeluar />} />
             <Route path="manage-user" element={<ManageUser />} />
 
             <Route path="*" element={<h1>404 Not Found</h1>} />

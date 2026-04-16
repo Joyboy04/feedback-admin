@@ -21,18 +21,18 @@ const _nav = [
   },
   {
     component: CNavTitle,
-    name: 'Data Barang',
+    name: 'Data Feedback',
   },
   {
     component: CNavItem,
-    name: 'Barang Masuk',
-    to: '/admin/barang-masuk',
+    name: 'Feedback Detail',
+    to: '/admin/feedback-detail',
     icon: <CIcon icon={cilArrowThickFromBottom} customClassName="nav-icon" />,
   },
   {
     component: CNavItem,
-    name: 'Barang Keluar',
-    to: '/admin/barang-keluar',
+    name: 'Feedback Summary',
+    to: '/admin/feedback-summary',
     icon: <CIcon icon={cilArrowThickToBottom} customClassName="nav-icon" />,
   },
   // New section for user management

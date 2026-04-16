@@ -17,8 +17,8 @@ const UserLayout = () => {
           <Routes>
             <Route index element={<UserDashboard />} />
             <Route path="dashboard" element={<UserDashboard />} />
-              <Route path="barang-masuk" element={<BarangMasuk />} />
-              <Route path="barang-keluar" element={<BarangKeluar />} />
+              <Route path="feedback-detail" element={<BarangMasuk />} />
+              <Route path="feedback-summary" element={<BarangKeluar />} />
 
               <Route path="*" element={<h1>404 Not Found</h1>} />
           </Routes>

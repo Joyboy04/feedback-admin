@@ -8,30 +8,27 @@ import {
   CRow,
   CWidgetStatsF,
   CSpinner,
+  CButton,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import {
-  cilPeople,
-  cilArrowTop,
-  cilArrowBottom,
-  cilCheckAlt,
-  cilX,
-  cilClock,
+  cilList,
+  cilReload,
+  cilWarning,
+  cilCheckCircle,
+  cilChartPie,
 } from '@coreui/icons'
-import { CChartDoughnut, CChartLine, CChartBar } from '@coreui/react-chartjs'
+import { CChartDoughnut, CChartBar } from '@coreui/react-chartjs'
 
 const AdminDashboard = () => {
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    totalBarangMasuk: 0,
-    totalBarangKeluar: 0,
-    pendingCount: 0,
-    approvedCount: 0,
-    rejectedCount: 0,
-  })
   const [loading, setLoading] = useState(true)
-  const [barangMasukData, setBarangMasukData] = useState([])
-  const [barangKeluarData, setBarangKeluarData] = useState([])
+  const [stats, setStats] = useState({
+    totalFeedback: 0,
+    totalOpen: 0,
+    totalClose: 0,
+    averageProgress: 0,
+  })
+  const [controlSystemSummary, setControlSystemSummary] = useState([])
 
   useEffect(() => {
     fetchDashboardData()
@@ -41,43 +38,41 @@ const AdminDashboard = () => {
     try {
       setLoading(true)
 
-      // Fetch Users
-      const usersSnapshot = await getDocs(collection(db, 'users'))
-      const totalUsers = usersSnapshot.size
-
-      // Fetch Barang Masuk
-      const barangMasukSnapshot = await getDocs(collection(db, 'barang-masuk'))
-      const barangMasukList = barangMasukSnapshot.docs.map(doc => ({
+      const feedbackSnapshot = await getDocs(collection(db, 'barang-masuk'))
+      const feedbackList = feedbackSnapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }))
-      const totalBarangMasuk = barangMasukSnapshot.size
 
-      // Fetch Barang Keluar
-      const barangKeluarSnapshot = await getDocs(collection(db, 'barang-keluar'))
-      const barangKeluarList = barangKeluarSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-      const totalBarangKeluar = barangKeluarSnapshot.size
+      const totalFeedback = feedbackList.length
+      const totalOpen = feedbackList.filter((item) => item.status === 'Open').length
+      const totalClose = feedbackList.filter((item) => item.status === 'Close').length
+      const averageProgress =
+        totalFeedback > 0 ? Math.round((totalClose / totalFeedback) * 100) : 0
 
-      // Count by status
-      const pendingCount = barangKeluarList.filter(item => item.status === 'pending').length
-      const approvedCount = barangKeluarList.filter(item => item.status === 'approved').length
-      const rejectedCount = barangKeluarList.filter(item => item.status === 'rejected').length
+      const controlMap = {}
 
-      setStats({
-        totalUsers,
-        totalBarangMasuk,
-        totalBarangKeluar,
-        pendingCount,
-        approvedCount,
-        rejectedCount,
+      feedbackList.forEach((item) => {
+        const controlSystem = item.controlSystem || 'Unknown'
+
+        if (!controlMap[controlSystem]) {
+          controlMap[controlSystem] = 0
+        }
+        controlMap[controlSystem] += 1
       })
 
-      setBarangMasukData(barangMasukList)
-      setBarangKeluarData(barangKeluarList)
+      const controlSystemData = Object.keys(controlMap).map((key) => ({
+        label: key,
+        value: controlMap[key],
+      }))
 
+      setStats({
+        totalFeedback,
+        totalOpen,
+        totalClose,
+        averageProgress,
+      })
+      setControlSystemSummary(controlSystemData)
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {
@@ -87,129 +82,195 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
-        <CSpinner color="primary" />
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ minHeight: '400px' }}
+      >
+        <CSpinner color="success" />
       </div>
     )
   }
 
   return (
     <div className="container-fluid p-4" style={{ maxWidth: '1400px', margin: '0 auto' }}>
-      <CRow className="mb-4">
+      <CRow className="mb-4 align-items-center">
         <CCol>
-          <h2 className="mb-0">Dashboard Overview</h2>
-          <p className="text-muted">Welcome to Admin Dashboard</p>
+          <h2 className="mb-0">Dashboard Feedback</h2>
+          <p className="text-muted mb-0">
+            Gambaran singkat kondisi feedback secara keseluruhan
+          </p>
+        </CCol>
+        <CCol xs="auto">
+          <CButton
+            color="success"
+            onClick={fetchDashboardData}
+            className="d-flex align-items-center gap-2"
+          >
+            <CIcon icon={cilReload} />
+            Refresh
+          </CButton>
         </CCol>
       </CRow>
 
-      {/* Stats Cards - Row 1 */}
+      {/* Summary Cards */}
       <CRow xs={{ gutter: 4 }} className="mb-4">
-        <CCol xs={12} sm={6} xl={4}>
+        <CCol xs={12} sm={6} xl={3}>
           <CWidgetStatsF
-            icon={<CIcon width={24} icon={cilPeople} size="xl" />}
-            title="Total Users"
-            value={stats.totalUsers.toString()}
+            icon={<CIcon width={24} icon={cilList} size="xl" />}
+            title="Total Feedback"
+            value={stats.totalFeedback.toString()}
             color="primary"
           />
         </CCol>
-        <CCol xs={12} sm={6} xl={4}>
+        <CCol xs={12} sm={6} xl={3}>
           <CWidgetStatsF
-            icon={<CIcon width={24} icon={cilArrowTop} size="xl" />}
-            title="Barang Masuk"
-            value={stats.totalBarangMasuk.toString()}
-            color="success"
-          />
-        </CCol>
-        <CCol xs={12} sm={6} xl={4}>
-          <CWidgetStatsF
-            icon={<CIcon width={24} icon={cilArrowBottom} size="xl" />}
-            title="Barang Keluar"
-            value={stats.totalBarangKeluar.toString()}
-            color="danger"
-          />
-        </CCol>
-      </CRow>
-
-      {/* Status Cards - Row 2 */}
-      <CRow xs={{ gutter: 4 }} className="mb-4">
-        <CCol xs={12} sm={6} xl={4}>
-          <CWidgetStatsF
-            icon={<CIcon width={24} icon={cilClock} size="xl" />}
-            title="Pending Requests"
-            value={stats.pendingCount.toString()}
+            icon={<CIcon width={24} icon={cilWarning} size="xl" />}
+            title="Issue Open"
+            value={stats.totalOpen.toString()}
             color="warning"
           />
         </CCol>
-        <CCol xs={12} sm={6} xl={4}>
+        <CCol xs={12} sm={6} xl={3}>
           <CWidgetStatsF
-            icon={<CIcon width={24} icon={cilCheckAlt} size="xl" />}
-            title="Approved"
-            value={stats.approvedCount.toString()}
+            icon={<CIcon width={24} icon={cilCheckCircle} size="xl" />}
+            title="Issue Close"
+            value={stats.totalClose.toString()}
             color="success"
           />
         </CCol>
-        <CCol xs={12} sm={6} xl={4}>
+        <CCol xs={12} sm={6} xl={3}>
           <CWidgetStatsF
-            icon={<CIcon width={24} icon={cilX} size="xl" />}
-            title="Rejected"
-            value={stats.rejectedCount.toString()}
-            color="danger"
+            icon={<CIcon width={24} icon={cilChartPie} size="xl" />}
+            title="Average Progress"
+            value={`${stats.averageProgress}%`}
+            color="info"
           />
         </CCol>
       </CRow>
 
-      {/* Charts Row */}
-      <CRow xs={{ gutter: 4 }}>
-        {/* Pie Chart - Status Distribution */}
+      {/* Row 2: Average Progress + Open vs Close */}
+      <CRow xs={{ gutter: 4 }} className="mb-4">
         <CCol xs={12} md={6}>
-          <CCard className="mb-4">
-            <CCardHeader>
-              <strong>Request Status Distribution</strong>
-            </CCardHeader>
-            <CCardBody>
+        <CCard className="mb-4 h-100">
+          <CCardHeader>
+            <strong>Average Progress</strong>
+          </CCardHeader>
+          <CCardBody className="d-flex justify-content-center align-items-center">
+            <div style={{ position: 'relative', width: '100%', maxWidth: '360px', height: '220px' }}>
               <CChartDoughnut
                 data={{
-                  labels: ['Pending', 'Approved', 'Rejected'],
+                  labels: ['Progress', 'Remaining'],
                   datasets: [
                     {
-                      backgroundColor: ['#ffc107', '#28a745', '#dc3545'],
-                      data: [stats.pendingCount, stats.approvedCount, stats.rejectedCount],
+                      data: [stats.averageProgress, 100 - stats.averageProgress],
+                      backgroundColor: ['#2eb85c', '#e9ecef'],
+                      borderWidth: 0,
+                      hoverOffset: 0,
                     },
                   ],
                 }}
                 options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  rotation: -90,
+                  circumference: 180,
+                  cutout: '75%',
                   plugins: {
                     legend: {
-                      position: 'bottom',
+                      display: false,
+                    },
+                    tooltip: {
+                      callbacks: {
+                        label: function (context) {
+                          return `${context.label}: ${context.raw}%`
+                        },
+                      },
                     },
                   },
                 }}
               />
+
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: '68%',
+                  transform: 'translate(-50%, -50%)',
+                  textAlign: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '34px',
+                    fontWeight: '700',
+                    color: '#2eb85c',
+                    lineHeight: '1',
+                  }}
+                >
+                  {stats.averageProgress}%
+                </div>
+                <div
+                  style={{
+                    fontSize: '13px',
+                    color: '#6c757d',
+                    marginTop: '6px',
+                  }}
+                >
+                  Average Progress
+                </div>
+              </div>
+            </div>
+          </CCardBody>
+        </CCard>
+      </CCol>
+
+        <CCol xs={12} md={6}>
+          <CCard className="mb-4 h-100">
+            <CCardHeader>
+              <strong>Perbandingan Issue Open vs Close</strong>
+            </CCardHeader>
+            <CCardBody className="d-flex align-items-center justify-content-center">
+              <div style={{ maxWidth: '350px', width: '100%' }}>
+                <CChartDoughnut
+                  data={{
+                    labels: ['Issue Open', 'Issue Close'],
+                    datasets: [
+                      {
+                        backgroundColor: ['#f9b115', '#2eb85c'],
+                        data: [stats.totalOpen, stats.totalClose],
+                      },
+                    ],
+                  }}
+                  options={{
+                    plugins: {
+                      legend: {
+                        position: 'bottom',
+                      },
+                    },
+                  }}
+                />
+              </div>
             </CCardBody>
           </CCard>
         </CCol>
+      </CRow>
 
-        {/* Bar Chart - Barang Masuk vs Keluar */}
-        <CCol xs={12} md={6}>
+      {/* Row 3: Feedback per Control System */}
+      <CRow xs={{ gutter: 4 }}>
+        <CCol xs={12}>
           <CCard className="mb-4">
             <CCardHeader>
-              <strong>Inventory Overview</strong>
+              <strong>Feedback per Control System</strong>
             </CCardHeader>
             <CCardBody>
               <CChartBar
                 data={{
-                  labels: ['Barang Masuk', 'Barang Keluar', 'Pending', 'Approved', 'Rejected'],
+                  labels: controlSystemSummary.map((item) => item.label),
                   datasets: [
                     {
-                      label: 'Count',
-                      backgroundColor: ['#28a745', '#dc3545', '#ffc107', '#28a745', '#dc3545'],
-                      data: [
-                        stats.totalBarangMasuk,
-                        stats.totalBarangKeluar,
-                        stats.pendingCount,
-                        stats.approvedCount,
-                        stats.rejectedCount,
-                      ],
+                      label: 'Jumlah Feedback',
+                      backgroundColor: '#321fdb',
+                      data: controlSystemSummary.map((item) => item.value),
                     },
                   ],
                 }}
@@ -225,45 +286,6 @@ const AdminDashboard = () => {
                       ticks: {
                         stepSize: 1,
                       },
-                    },
-                  },
-                }}
-              />
-            </CCardBody>
-          </CCard>
-        </CCol>
-
-        {/* Line Chart - Top Items */}
-        <CCol xs={12}>
-          <CCard className="mb-4">
-            <CCardHeader>
-              <strong>Stock Levels - Top 5 Items</strong>
-            </CCardHeader>
-            <CCardBody>
-              <CChartLine
-                data={{
-                  labels: barangMasukData.slice(0, 5).map(item => item.name || 'Unknown'),
-                  datasets: [
-                    {
-                      label: 'Quantity',
-                      backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                      borderColor: 'rgba(75, 192, 192, 1)',
-                      pointBackgroundColor: 'rgba(75, 192, 192, 1)',
-                      pointBorderColor: '#fff',
-                      data: barangMasukData.slice(0, 5).map(item => item.quantity || 0),
-                      fill: true,
-                    },
-                  ],
-                }}
-                options={{
-                  plugins: {
-                    legend: {
-                      display: false,
-                    },
-                  },
-                  scales: {
-                    y: {
-                      beginAtZero: true,
                     },
                   },
                 }}

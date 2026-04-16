@@ -17,14 +17,19 @@ import {
   CRow,
   CCol,
   CSpinner,
+  CFormSelect,
 } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
 import { cilFile, cilCheckAlt, cilX } from '@coreui/icons';
 
 const BarangMasukForm = () => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [quantity, setQuantity] = useState('');
+  const [periode, setPeriode] = useState('');
+  const [controlSystem, setControlSystem] = useState('');
+  const [equipment, setEquipment] = useState('');
+  const [problem, setProblem] = useState('');
+  const [solusi, setSolusi] = useState('');
+  const [status, setStatus] = useState('');
+  const [progress, setProgress] = useState('');
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -39,14 +44,26 @@ const BarangMasukForm = () => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!name.trim()) {
-      newErrors.name = 'Name is required';
+    if (!periode.trim()) {
+      newErrors.periode = 'Periode is required';
     }
-    if (!description.trim()) {
-      newErrors.description = 'Description is required';
+    if (!controlSystem.trim()) {
+      newErrors.controlSystem = 'Control System is required';
     }
-    if (!quantity || quantity <= 0) {
-      newErrors.quantity = 'Quantity must be greater than 0';
+    if (!equipment.trim()) {
+      newErrors.equipment = 'Equipment is required';
+    }
+    if (!problem.trim()) {
+      newErrors.problem = 'Problem is required';
+    }
+    if (!solusi.trim()) {
+      newErrors.solusi = 'Solusi is required';
+    }
+    if (!status.trim()) {
+      newErrors.status = 'Status is required';
+    }
+    if (progress === '' || progress < 0 || progress > 100) {
+      newErrors.progress = 'Progress must be between 0 and 100';
     }
     if (!image) {
       newErrors.image = 'Image is required';
@@ -103,11 +120,15 @@ const BarangMasukForm = () => {
       const chatId = import.meta.env.VITE_TELEGRAM_CHAT_ID;
 
       const message = `
-🔔 <b>NOTIFIKASI BARANG MASUK - PERLU APPROVAL</b>
+🔔 <b>NOTIFIKASI REPORT BARU - PERLU APPROVAL</b>
 
-📦 <b>Nama Item:</b> ${barangData.name}
-📝 <b>Deskripsi:</b> ${barangData.description}
-📊 <b>Quantity:</b> ${barangData.quantity}
+📅 <b>Periode:</b> ${barangData.periode}
+🖥️ <b>Control System:</b> ${barangData.controlSystem}
+⚙️ <b>Equipment:</b> ${barangData.equipment}
+🚨 <b>Problem:</b> ${barangData.problem}
+🛠️ <b>Solusi:</b> ${barangData.solusi}
+📌 <b>Status:</b> ${barangData.status}
+📊 <b>Progress:</b> ${barangData.progress}%
 👤 <b>Input By:</b> ${barangData.createdBy}
 ⏰ <b>Waktu:</b> ${new Date(barangData.createdAt).toLocaleString('id-ID')}
 🆔 <b>ID:</b> <code>${barangData.id}</code>
@@ -147,13 +168,17 @@ const BarangMasukForm = () => {
     try {
       const templateParams = {
         to_email: import.meta.env.VITE_NOTIFICATION_EMAIL,
-        item_name: barangData.name,
-        item_description: barangData.description,
-        item_quantity: barangData.quantity,
+        periode: barangData.periode,
+        control_system: barangData.controlSystem,
+        equipment: barangData.equipment,
+        problem: barangData.problem,
+        solusi: barangData.solusi,
+        status: barangData.status,
+        progress: barangData.progress,
         created_by: barangData.createdBy,
         created_at: new Date(barangData.createdAt).toLocaleString('id-ID'),
         item_id: barangData.id,
-        dashboard_link: `${window.location.origin}/admin/barang-masuk`,
+        dashboard_link: `${window.location.origin}/admin/feedback-detail`,
       };
 
       const response = await emailjs.send(
@@ -188,22 +213,29 @@ const BarangMasukForm = () => {
 
       // Add document to Firestore
       const docRef = await addDoc(collection(db, 'barang-masuk'), {
-        name: name.trim(),
-        description: description.trim(),
-        quantity: parseInt(quantity),
+        periode: periode.trim(),
+        controlSystem: controlSystem.trim(),
+        equipment: equipment.trim(),
+        problem: problem.trim(),
+        solusi: solusi.trim(),
+        status: status,
+        progress: parseInt(progress),
         image: image,
         createdAt: new Date().toISOString(),
         createdBy: '',
-        status: 'pending',
       });
 
       console.log('✅ Document added with ID:', docRef.id);
 
       const barangData = {
         id: docRef.id,
-        name: name.trim(),
-        description: description.trim(),
-        quantity: parseInt(quantity),
+        periode: periode.trim(),
+        controlSystem: controlSystem.trim(),
+        equipment: equipment.trim(),
+        problem: problem.trim(),
+        solusi: solusi.trim(),
+        status: status,
+        progress: parseInt(progress),
         createdBy: '',
         createdAt: new Date().toISOString(),
       };
@@ -231,7 +263,7 @@ const BarangMasukForm = () => {
       }
 
       // Show success message
-      let successMessage = 'Barang Masuk added successfully!';
+      let successMessage = 'Report added successfully!';
       if (notificationsSent.telegram && notificationsSent.email) {
         successMessage += '\n✅ Notifications sent to Telegram & Email';
       } else if (notificationsSent.telegram) {
@@ -250,9 +282,13 @@ const BarangMasukForm = () => {
       });
 
       // Clear form after submission
-      setName('');
-      setDescription('');
-      setQuantity('');
+      setPeriode('');
+      setControlSystem('');
+      setEquipment('');
+      setProblem('');
+      setSolusi('');
+      setStatus('');
+      setProgress('');
       setImage(null);
       setImagePreview(null);
       setErrors({});
@@ -260,7 +296,7 @@ const BarangMasukForm = () => {
       console.error('❌ Error adding document:', err);
       Swal.fire({
         title: 'Error!',
-        text: 'Failed to add Barang Masuk: ' + err.message,
+        text: 'Failed to add Report: ' + err.message,
         icon: 'error',
         confirmButtonText: 'OK',
       });
@@ -274,85 +310,174 @@ const BarangMasukForm = () => {
       <CCardHeader className="bg-primary text-white">
         <h5 className="mb-0">
           <CIcon icon={cilFile} className="me-2" />
-          Add New Barang Masuk
+          Add New Report
         </h5>
       </CCardHeader>
       <CCardBody>
         <CForm onSubmit={handleSubmit}>
-          {/* Name and Quantity Row */}
           <CRow className="mb-3">
             <CCol md={6}>
-              <CFormLabel htmlFor="name" className="fw-bold">
-                Name <span className="text-danger">*</span>
+              <CFormLabel htmlFor="periode" className="fw-bold">
+                Periode <span className="text-danger">*</span>
               </CFormLabel>
               <CFormInput
-                id="name"
+                id="periode"
                 type="text"
-                placeholder="Enter item name"
-                value={name}
+                placeholder="Enter periode"
+                value={periode}
                 onChange={(e) => {
-                  setName(e.target.value);
-                  setErrors({ ...errors, name: '' });
+                  setPeriode(e.target.value);
+                  setErrors({ ...errors, periode: '' });
                 }}
-                isInvalid={!!errors.name}
+                isInvalid={!!errors.periode}
                 disabled={loading}
               />
-              {errors.name && (
-                <CFormFeedback invalid>{errors.name}</CFormFeedback>
+              {errors.periode && (
+                <CFormFeedback invalid>{errors.periode}</CFormFeedback>
               )}
             </CCol>
+
             <CCol md={6}>
-              <CFormLabel htmlFor="quantity" className="fw-bold">
-                Quantity <span className="text-danger">*</span>
+              <CFormLabel htmlFor="controlSystem" className="fw-bold">
+                Control System <span className="text-danger">*</span>
               </CFormLabel>
               <CFormInput
-                id="quantity"
-                type="number"
-                placeholder="Enter quantity"
-                value={quantity}
+                id="controlSystem"
+                type="text"
+                placeholder="Enter control system"
+                value={controlSystem}
                 onChange={(e) => {
-                  setQuantity(e.target.value);
-                  setErrors({ ...errors, quantity: '' });
+                  setControlSystem(e.target.value);
+                  setErrors({ ...errors, controlSystem: '' });
                 }}
-                isInvalid={!!errors.quantity}
+                isInvalid={!!errors.controlSystem}
                 disabled={loading}
-                min="1"
               />
-              {errors.quantity && (
-                <CFormFeedback invalid>{errors.quantity}</CFormFeedback>
+              {errors.controlSystem && (
+                <CFormFeedback invalid>{errors.controlSystem}</CFormFeedback>
               )}
             </CCol>
           </CRow>
 
-          {/* Description Row */}
+          <CRow className="mb-3">
+            <CCol md={6}>
+              <CFormLabel htmlFor="equipment" className="fw-bold">
+                Equipment <span className="text-danger">*</span>
+              </CFormLabel>
+              <CFormInput
+                id="equipment"
+                type="text"
+                placeholder="Enter equipment"
+                value={equipment}
+                onChange={(e) => {
+                  setEquipment(e.target.value);
+                  setErrors({ ...errors, equipment: '' });
+                }}
+                isInvalid={!!errors.equipment}
+                disabled={loading}
+              />
+              {errors.equipment && (
+                <CFormFeedback invalid>{errors.equipment}</CFormFeedback>
+              )}
+            </CCol>
+
+            <CCol md={3}>
+              <CFormLabel htmlFor="status" className="fw-bold">
+                Status <span className="text-danger">*</span>
+              </CFormLabel>
+              <CFormSelect
+                id="status"
+                value={status}
+                onChange={(e) => {
+                  setStatus(e.target.value);
+                  setErrors({ ...errors, status: '' });
+                }}
+                invalid={!!errors.status}
+                disabled={loading}
+              >
+                <option value="">Choose status</option>
+                <option value="Open">Open</option>
+                <option value="Close">Close</option>
+              </CFormSelect>
+              {errors.status && (
+                <div className="text-danger small mt-1">{errors.status}</div>
+              )}
+            </CCol>
+
+            <CCol md={3}>
+              <CFormLabel htmlFor="progress" className="fw-bold">
+                Progress (%) <span className="text-danger">*</span>
+              </CFormLabel>
+              <CFormInput
+                id="progress"
+                type="number"
+                placeholder="0 - 100"
+                value={progress}
+                onChange={(e) => {
+                  setProgress(e.target.value);
+                  setErrors({ ...errors, progress: '' });
+                }}
+                isInvalid={!!errors.progress}
+                disabled={loading}
+                min="0"
+                max="100"
+              />
+              {errors.progress && (
+                <CFormFeedback invalid>{errors.progress}</CFormFeedback>
+              )}
+            </CCol>
+          </CRow>
+
           <CRow className="mb-3">
             <CCol md={12}>
-              <CFormLabel htmlFor="description" className="fw-bold">
-                Description <span className="text-danger">*</span>
+              <CFormLabel htmlFor="problem" className="fw-bold">
+                Problem <span className="text-danger">*</span>
               </CFormLabel>
               <CFormInput
-                id="description"
+                id="problem"
                 type="text"
-                placeholder="Enter item description"
-                value={description}
+                placeholder="Enter problem"
+                value={problem}
                 onChange={(e) => {
-                  setDescription(e.target.value);
-                  setErrors({ ...errors, description: '' });
+                  setProblem(e.target.value);
+                  setErrors({ ...errors, problem: '' });
                 }}
-                isInvalid={!!errors.description}
+                isInvalid={!!errors.problem}
                 disabled={loading}
               />
-              {errors.description && (
-                <CFormFeedback invalid>{errors.description}</CFormFeedback>
+              {errors.problem && (
+                <CFormFeedback invalid>{errors.problem}</CFormFeedback>
               )}
             </CCol>
           </CRow>
 
-          {/* Image Upload Row */}
+          <CRow className="mb-3">
+            <CCol md={12}>
+              <CFormLabel htmlFor="solusi" className="fw-bold">
+                Solusi <span className="text-danger">*</span>
+              </CFormLabel>
+              <CFormInput
+                id="solusi"
+                type="text"
+                placeholder="Enter solusi"
+                value={solusi}
+                onChange={(e) => {
+                  setSolusi(e.target.value);
+                  setErrors({ ...errors, solusi: '' });
+                }}
+                isInvalid={!!errors.solusi}
+                disabled={loading}
+              />
+              {errors.solusi && (
+                <CFormFeedback invalid>{errors.solusi}</CFormFeedback>
+              )}
+            </CCol>
+          </CRow>
+
           <CRow className="mb-3">
             <CCol md={12}>
               <CFormLabel htmlFor="image" className="fw-bold">
-                Upload Image <span className="text-danger">*</span>
+                Upload Photo <span className="text-danger">*</span>
               </CFormLabel>
               <CInputGroup>
                 <CInputGroupText>
@@ -378,7 +503,6 @@ const BarangMasukForm = () => {
             </CCol>
           </CRow>
 
-          {/* Image Preview */}
           {imagePreview && (
             <CRow className="mb-3">
               <CCol md={12}>
@@ -406,7 +530,6 @@ const BarangMasukForm = () => {
             </CRow>
           )}
 
-          {/* Submit Button Row */}
           <CRow>
             <CCol md={12}>
               <CButton
